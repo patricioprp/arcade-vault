@@ -138,6 +138,10 @@ Convenciones:
 - **Sí:** mantener decorativos del template (créditos, botones sociales, "TU MEJOR MARCA" inventada, leaderboards con `seededScores`). Se reemplazan cuando existan datos reales.
 - **Sí:** `useSyncExternalStore` para leer `localStorage`. Evita mismatches de hidratación entre servidor (sin usuario) y cliente.
 - **No:** proteger rutas por sesión. Se puede jugar como invitado, igual que en el template.
+- **Sí (agregado durante la implementación):** excluir `references/**` del lint en `eslint.config.mjs`. El prototipo usa React UMD y globals en `window`, y rompía `npm run lint`; no es código de la app.
+- **No:** corregir los `.jsx` de referencia para que pasen el lint. Modificaría el material de referencia.
+- **Sí (agregado durante la implementación):** en `/juegos/[id]` y `/juegos/[id]/jugar`, leer `params` dentro de `<Suspense>` con un esqueleto como fallback. Con `partialPrefetching` la App Shell se comparte entre todos los ids, y leer `params` fuera de `<Suspense>` dispara el aviso "URL data outside of Suspense" y quita la navegación instantánea.
+- **No:** `export const instant = false`. Silencia el aviso, pero deja esas rutas bloqueantes.
 
 ## Riesgos
 
