@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import { useUser } from "@/lib/user-store";
 
@@ -8,8 +8,10 @@ type Tab = "in" | "up";
 
 export function AuthForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { login, logout } = useUser();
-  const [tab, setTab] = useState<Tab>("in");
+  // ?modo=registro opens CREAR CUENTA; any other value (or none) opens INICIAR SESIÓN.
+  const [tab, setTab] = useState<Tab>(searchParams.get("modo") === "registro" ? "up" : "in");
   const [user, setUser] = useState("");
   const [pass, setPass] = useState("");
   const [email, setEmail] = useState("");

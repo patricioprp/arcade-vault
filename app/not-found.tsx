@@ -11,7 +11,7 @@ export default function NotFound() {
         Esta dirección no existe en el vault. Revisa la URL o vuelve a la
         biblioteca para elegir otro juego.
       </p>
-      <Link href="/" className="btn lg mt-2">
+      <Link href="/juegos" className="btn lg mt-2">
         VOLVER AL VAULT
       </Link>
     </div>
