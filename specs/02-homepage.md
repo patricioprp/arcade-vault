@@ -25,7 +25,7 @@ Ocupar `/` con la Home obliga a reubicar la Biblioteca y a revisar todos los lin
   - CTA final "¿LISTO PARA JUGAR?" con botón "INSERTAR MONEDA →".
 - Animación `.reveal` de las secciones al entrar en viewport, con fallback para reduced-motion y para HTML previo a la hidratación.
 - **Biblioteca** movida de `/` a `/juegos`, sin cambios visuales (hero "ARCADE VAULT", buscador, chips y grilla).
-- Nav con links **Inicio** (`/`), **Biblioteca** (`/juegos`) y **Salón de la Fama**, en desktop y en el panel móvil.
+- Nav con links **Biblioteca** (`/juegos`) y **Salón de la Fama**, en desktop y en el panel móvil. A la Home se llega desde el logo.
 - `/login?modo=registro` abre `AuthForm` directamente en la tab CREAR CUENTA.
 - Actualización de los links existentes que apuntaban a `/` como Biblioteca.
 - Port a `app/globals.css` solo de las clases de la Home presentes en `home-about/styles.css`.
@@ -72,7 +72,7 @@ Convenciones:
 ## Plan de implementación
 
 1. Mover la Biblioteca: crear `app/juegos/page.tsx` con el contenido actual de `app/page.tsx` (hero + `<Library />`). Dejar `app/page.tsx` temporalmente con un placeholder mínimo. Verificar que `/juegos` se ve igual que antes y que `/juegos/[id]` sigue funcionando.
-2. Actualizar `components/nav.tsx`: secciones `"inicio" | "biblioteca" | "salon" | "login"`. `"inicio"` solo en `/`; `"biblioteca"` en `/juegos` y `/juegos/*`. Agregar link "Inicio" en desktop y panel móvil; "Biblioteca" apunta a `/juegos`. El logo sigue yendo a `/`.
+2. Actualizar `components/nav.tsx`: `"biblioteca"` activo en `/juegos` y `/juegos/*` (ya no en `/`); "Biblioteca" apunta a `/juegos` en desktop y panel móvil. El logo sigue yendo a `/`. En `/` ningún link queda activo.
 3. Actualizar links existentes: VOLVER AL VAULT en `app/juegos/[id]/page.tsx`, `components/game-player.tsx` y `app/not-found.tsx` → `/juegos`. VOLVER A LA BIBLIOTECA en `app/salon-de-la-fama/page.tsx` → `/juegos`. `AuthForm` (login e invitado) sigue redirigiendo a `/`.
 4. Portar a `app/globals.css` el bloque `/* ===== HOME PAGE ===== */` de `home-about/styles.css`: clases `.home*`, `.hero-eyebrow`, `.hero-scroll`, `.home-silos`/`.silo`, `.section-*`, `.kicker`, `.feature-*`, `.ft-*`, `.mini-*`, `.stat-*`/`.stats-inner`, `.activity-*`, `.ac-*`, `.ticker`/`.tick-row`/`.tk-*`, `.top-*`/`.tp-*`, `.lb-link`, `.pricing-*`, `.price-card`/`.pc-*`, `.faq-*`, `.final-*`, `.reveal` y sus keyframes. No portar clases de about ni `.gp-*`. Agregar `@media (prefers-reduced-motion: reduce)` que muestre `.reveal` sin transición y detenga la flotación de `.silo`.
 5. Crear `lib/home-content.ts` con las constantes del modelo de datos, copiadas literal de `home.jsx`.
@@ -94,7 +94,7 @@ Convenciones:
 - [ ] VER SALÓN → navega a `/salon-de-la-fama`.
 - [ ] El ticker muestra 7 filas y el top 5 filas, con números formateados con punto de miles (ej. "184.220").
 - [ ] `/juegos` muestra el hero "ARCADE VAULT", el buscador, los 5 chips y las 8 tarjetas, igual que la antigua `/`.
-- [ ] El link activo del nav es "Inicio" en `/`, "Biblioteca" en `/juegos` y `/juegos/*`, y "Salón de la Fama" en `/salon-de-la-fama`, en desktop y en el panel móvil.
+- [ ] El link activo del nav es "Biblioteca" en `/juegos` y `/juegos/*`, y "Salón de la Fama" en `/salon-de-la-fama`, en desktop y en el panel móvil; en `/` ninguno está activo.
 - [ ] VOLVER AL VAULT en Detalle, Reproductor y 404, y VOLVER A LA BIBLIOTECA en el Salón, navegan a `/juegos`.
 - [ ] Iniciar sesión o JUGAR COMO INVITADO redirige a `/`.
 - [ ] Al hacer scroll, cada sección `.reveal` aparece con su animación al entrar en viewport.
@@ -107,6 +107,7 @@ Convenciones:
 
 - **Sí:** solo la Home en esta spec. Acerca de + Contacto es otra pantalla con su propio formulario y estados.
 - **No:** agregar ya el link "Acerca de" apuntando a una ruta inexistente. Mostraría la 404 desde el nav.
+- **No:** link "Inicio" en el nav. Se quitó durante la implementación a pedido del usuario; el logo ya lleva a `/`.
 - **Sí:** Biblioteca en `/juegos`. Es el índice natural de `/juegos/[id]` y la URL describe la colección.
 - **No:** `/biblioteca`. Dejaría dos prefijos distintos para la misma colección.
 - **Sí:** textos y números de la Home literales del template en `lib/home-content.ts`. Mantiene la decisión de decorativos de la SPEC 01 y separa contenido de markup.

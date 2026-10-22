@@ -8,7 +8,7 @@ import { useUser } from "@/lib/user-store";
 type Section = "biblioteca" | "salon" | "login";
 
 function sectionOf(pathname: string): Section | null {
-  if (pathname === "/" || pathname.startsWith("/juegos/")) return "biblioteca";
+  if (pathname === "/juegos" || pathname.startsWith("/juegos/")) return "biblioteca";
   if (pathname.startsWith("/salon-de-la-fama")) return "salon";
   if (pathname.startsWith("/login")) return "login";
   return null;
@@ -32,7 +32,7 @@ export function Nav() {
           </div>
         </Link>
         <div className="links">
-          <Link href="/" className={cls("biblioteca")}>
+          <Link href="/juegos" className={cls("biblioteca")}>
             Biblioteca
           </Link>
           <Link href="/salon-de-la-fama" className={cls("salon")}>
@@ -74,7 +74,7 @@ export function Nav() {
         inert={!open}
       >
         <div className="pixel neon-cyan mb-4 text-[11px]">MENÚ</div>
-        <Link href="/" className={cls("biblioteca")} onClick={close}>
+        <Link href="/juegos" className={cls("biblioteca")} onClick={close}>
           Biblioteca
         </Link>
         <Link href="/salon-de-la-fama" className={cls("salon")} onClick={close}>
