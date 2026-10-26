@@ -2,6 +2,10 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import {
+  PLAYABLE_GAMES,
+  type PlayableGameStats,
+} from "@/components/games/registry";
 import type { Game } from "@/lib/games";
 import { saveScore } from "@/lib/score-store";
 import { useUser } from "@/lib/user-store";
@@ -10,6 +14,8 @@ type Run = { score: number; level: number };
 const INITIAL_RUN: Run = { score: 0, level: 1 };
 
 export function GamePlayer({ game }: { game: Game }) {
+  // Juego real registrado para este id; si no hay, se usa la arena simulada.
+  const Playable = PLAYABLE_GAMES[game.id];
   const { user } = useUser();
   const [run, setRun] = useState<Run>(INITIAL_RUN);
   const [lives, setLives] = useState(3);
@@ -18,21 +24,57 @@ export function GamePlayer({ game }: { game: Game }) {
   // null = no editado: se muestra el usuario (o INVITADO) sin desfasar la hidratación.
   const [editedName, setEditedName] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  const [extra, setExtra] = useState<PlayableGameStats["extra"]>();
+  // Se incrementa en JUGAR DE NUEVO para remontar el juego real con estado limpio.
+  const [runKey, setRunKey] = useState(0);
 
   const name = editedName ?? user?.name ?? "INVITADO";
   const { score, level } = run;
 
   // Puntuación simulada; sube de nivel al cruzar cada múltiplo de 2500 (igual que el template).
   useEffect(() => {
-    if (over || paused) return;
+    if (Playable || over || paused) return;
     const t = setInterval(() => {
       setRun((r) => {
         const next = r.score + Math.floor(10 + Math.random() * 90);
-        return { score: next, level: next % 2500 < 100 ? r.level + 1 : r.level };
+        return {
+          score: next,
+          level: next % 2500 < 100 ? r.level + 1 : r.level,
+        };
       });
     }, 220);
     return () => clearInterval(t);
-  }, [over, paused]);
+  }, [Playable, over, paused]);
+
+  // Solo con juego real: P / Escape alternan la pausa y ocultar la pestaña pausa.
+  useEffect(() => {
+    if (!Playable || over) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.repeat || (e.code !== "KeyP" && e.code !== "Escape")) return;
+      e.preventDefault();
+      setPaused((p) => !p);
+    };
+    const onVisibility = () => {
+      if (document.hidden) setPaused(true);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, [Playable, over]);
+
+  const onStats = (s: PlayableGameStats) => {
+    setRun({ score: s.score, level: s.level });
+    setLives(s.lives);
+    setExtra(s.extra);
+  };
+
+  const onGameOver = (finalScore: number) => {
+    setRun((r) => ({ ...r, score: finalScore }));
+    setOver(true);
+  };
 
   const restart = () => {
     setRun(INITIAL_RUN);
@@ -40,6 +82,8 @@ export function GamePlayer({ game }: { game: Game }) {
     setPaused(false);
     setOver(false);
     setSaved(false);
+    setExtra(undefined);
+    setRunKey((k) => k + 1);
   };
 
   const onSave = () => {
@@ -67,6 +111,12 @@ export function GamePlayer({ game }: { game: Game }) {
             <div className="l">Nivel</div>
             <div className="v">{String(level).padStart(2, "0")}</div>
           </div>
+          {extra && (
+            <div className="hud-stat">
+              <div className="l">{extra.label}</div>
+              <div className="v">{extra.value}</div>
+            </div>
+          )}
         </div>
         <div className="hud-actions">
           <button className="btn yellow" onClick={() => setPaused((p) => !p)}>
@@ -83,13 +133,22 @@ export function GamePlayer({ game }: { game: Game }) {
 
       <div className="crt">
         <div className="crt-screen">
-          <div className="game-arena">
-            <div className="grid-floor"></div>
-            <div className="enemy e1"></div>
-            <div className="enemy e2"></div>
-            <div className="enemy e3"></div>
-            <div className="player-ship"></div>
-          </div>
+          {Playable ? (
+            <Playable
+              key={runKey}
+              paused={paused || over}
+              onStats={onStats}
+              onGameOver={onGameOver}
+            />
+          ) : (
+            <div className="game-arena">
+              <div className="grid-floor"></div>
+              <div className="enemy e1"></div>
+              <div className="enemy e2"></div>
+              <div className="enemy e3"></div>
+              <div className="player-ship"></div>
+            </div>
+          )}
           {paused && (
             <div className="crt-content z-[5] bg-black/60">
               <div>
@@ -110,7 +169,12 @@ export function GamePlayer({ game }: { game: Game }) {
 
       {over && (
         <div className="modal-bd">
-          <div className="modal" role="dialog" aria-modal="true" aria-labelledby="game-over-title">
+          <div
+            className="modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="game-over-title"
+          >
             <h2 id="game-over-title">FIN DEL JUEGO</h2>
             <div className="final-label">PUNTUACIÓN FINAL</div>
             <div className="final">{score.toLocaleString("es-ES")}</div>
@@ -118,7 +182,9 @@ export function GamePlayer({ game }: { game: Game }) {
               <div className="input-row">
                 <input
                   value={name}
-                  onChange={(e) => setEditedName(e.target.value.toUpperCase().slice(0, 10))}
+                  onChange={(e) =>
+                    setEditedName(e.target.value.toUpperCase().slice(0, 10))
+                  }
                   placeholder="TUS INICIALES"
                   aria-label="Tus iniciales"
                 />
