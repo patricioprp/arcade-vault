@@ -1,6 +1,6 @@
 # SPEC 04 — Base técnica de Supabase
 
-> **Estado:** aprobado
+> **Estado:** implementado
 > **Depende de:** —
 > **Fecha:** 2026-10-26
 > **Objetivo:** Conectar la app de Next.js al proyecto remoto de Supabase con clientes tipados, migraciones versionadas en el repo y una ruta `/api/health/db` que pruebe la conexión.
