@@ -2,15 +2,16 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { submitScore } from "@/app/juegos/[id]/jugar/actions";
 import {
   PLAYABLE_GAMES,
   type PlayableGameStats,
 } from "@/components/games/registry";
 import type { Game } from "@/lib/games";
-import { saveScore } from "@/lib/score-store";
 import { useUser } from "@/lib/user-store";
 
 type Run = { score: number; level: number };
+type SaveState = "idle" | "saving" | "saved" | "error";
 const INITIAL_RUN: Run = { score: 0, level: 1 };
 
 export function GamePlayer({ game }: { game: Game }) {
@@ -23,7 +24,7 @@ export function GamePlayer({ game }: { game: Game }) {
   const [over, setOver] = useState(false);
   // null = no editado: se muestra el usuario (o INVITADO) sin desfasar la hidratación.
   const [editedName, setEditedName] = useState<string | null>(null);
-  const [saved, setSaved] = useState(false);
+  const [saveState, setSaveState] = useState<SaveState>("idle");
   const [extra, setExtra] = useState<PlayableGameStats["extra"]>();
   // Se incrementa en JUGAR DE NUEVO para remontar el juego real con estado limpio.
   const [runKey, setRunKey] = useState(0);
@@ -81,15 +82,27 @@ export function GamePlayer({ game }: { game: Game }) {
     setLives(3);
     setPaused(false);
     setOver(false);
-    setSaved(false);
+    setSaveState("idle");
     setExtra(undefined);
     setRunKey((k) => k + 1);
   };
 
-  const onSave = () => {
-    saveScore({ game: game.id, score, name });
-    setSaved(true);
+  const onSave = async () => {
+    setSaveState("saving");
+    try {
+      const result = await submitScore(
+        game.id,
+        name.trim() || "INVITADO",
+        score,
+      );
+      setSaveState(result.ok ? "saved" : "error");
+    } catch {
+      // Sin red la Server Action rechaza la promesa en lugar de devolver { ok: false }.
+      setSaveState("error");
+    }
   };
+
+  const saving = saveState === "saving";
 
   return (
     <div className="av-player fade-in">
@@ -178,24 +191,59 @@ export function GamePlayer({ game }: { game: Game }) {
             <h2 id="game-over-title">FIN DEL JUEGO</h2>
             <div className="final-label">PUNTUACIÓN FINAL</div>
             <div className="final">{score.toLocaleString("es-ES")}</div>
-            {!saved ? (
-              <div className="input-row">
-                <input
-                  value={name}
-                  onChange={(e) =>
-                    setEditedName(e.target.value.toUpperCase().slice(0, 10))
-                  }
-                  placeholder="TUS INICIALES"
-                  aria-label="Tus iniciales"
-                />
-                <button className="btn yellow" onClick={onSave}>
-                  GUARDAR PUNTUACIÓN
-                </button>
+            {!Playable ? (
+              <div className="modal-note demo">
+                <span className="note-led" aria-hidden="true"></span>
+                MODO DEMO — NO PUNTÚA
+              </div>
+            ) : score === 0 ? (
+              <div className="modal-note">SIN PUNTOS PARA GUARDAR</div>
+            ) : saveState === "saved" ? (
+              <div className="saved-block">
+                <div className="toast-saved" role="status">
+                  ▸ PUNTUACIÓN GUARDADA_
+                </div>
+                <Link
+                  href={`/salon-de-la-fama?juego=${game.id}`}
+                  className="btn yellow"
+                >
+                  VER SALÓN DE LA FAMA
+                </Link>
               </div>
             ) : (
-              <div className="toast-saved" role="status">
-                ▸ PUNTUACIÓN GUARDADA_
-              </div>
+              <>
+                <div className="input-row">
+                  <input
+                    value={name}
+                    onChange={(e) =>
+                      setEditedName(e.target.value.toUpperCase().slice(0, 10))
+                    }
+                    placeholder="TUS INICIALES"
+                    aria-label="Tus iniciales"
+                    disabled={saving}
+                  />
+                  <button
+                    className="btn yellow"
+                    onClick={onSave}
+                    disabled={saving}
+                    aria-busy={saving}
+                  >
+                    {saving ? (
+                      <>
+                        <span className="spinner" aria-hidden="true"></span>
+                        GUARDANDO…
+                      </>
+                    ) : (
+                      "GUARDAR PUNTUACIÓN"
+                    )}
+                  </button>
+                </div>
+                {saveState === "error" && (
+                  <p className="save-error" role="alert">
+                    NO SE PUDO GUARDAR. REINTENTÁ.
+                  </p>
+                )}
+              </>
             )}
             <div className="actions">
               <button className="btn" onClick={restart}>
