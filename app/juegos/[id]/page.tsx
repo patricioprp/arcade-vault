@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
+import { PLAYABLE_GAMES } from "@/components/games/registry";
 import { Leaderboard } from "@/components/leaderboard";
 import { GAMES, getGame } from "@/lib/games";
-import { seededScores } from "@/lib/scores";
+import { getLeaderboard, getPlayCount } from "@/lib/leaderboard";
 
 type Params = PageProps<"/juegos/[id]">["params"];
 
@@ -42,7 +43,11 @@ async function GameDetail({ params }: { params: Params }) {
   const game = getGame(id);
   if (!game) notFound();
 
-  const scores = seededScores(id.length * 17 + 3, 10);
+  const [scores, plays] = await Promise.all([
+    getLeaderboard(id),
+    getPlayCount(id),
+  ]);
+  const best = scores[0]?.score;
 
   return (
     <>
@@ -62,18 +67,23 @@ async function GameDetail({ params }: { params: Params }) {
           <div className="stat-strip">
             <div>
               <div className="l">Partidas</div>
-              <div className="v">{game.plays}</div>
+              <div className="v">{plays.toLocaleString("es-ES")}</div>
             </div>
             <div>
               <div className="l">Mejor global</div>
               <div className="v text-magenta [text-shadow:0_0_6px_rgba(255,0,110,0.5)]">
-                {game.best.toLocaleString("es-ES")}
+                {best !== undefined ? best.toLocaleString("es-ES") : "—"}
               </div>
             </div>
             <div>
               <div className="l">Dificultad</div>
-              <div className="v text-yellow [text-shadow:0_0_6px_rgba(245,255,0,0.5)]">
-                ★ ★ ★ ☆ ☆
+              <div
+                className="v text-yellow [text-shadow:0_0_6px_rgba(245,255,0,0.5)]"
+                aria-label={`${game.difficulty} de 5`}
+              >
+                {Array.from({ length: 5 }, (_, i) =>
+                  i < game.difficulty ? "★" : "☆",
+                ).join(" ")}
               </div>
             </div>
           </div>
@@ -89,7 +99,10 @@ async function GameDetail({ params }: { params: Params }) {
       </div>
 
       <aside>
-        <Leaderboard scores={scores} />
+        <Leaderboard
+          scores={scores}
+          playable={Boolean(PLAYABLE_GAMES[game.id])}
+        />
       </aside>
     </>
   );

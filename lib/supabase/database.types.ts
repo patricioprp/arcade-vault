@@ -14,13 +14,83 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      games: {
+        Row: {
+          id: string
+          playable: boolean
+          title: string
+        }
+        Insert: {
+          id: string
+          playable?: boolean
+          title: string
+        }
+        Update: {
+          id?: string
+          playable?: boolean
+          title?: string
+        }
+        Relationships: []
+      }
+      scores: {
+        Row: {
+          created_at: string
+          game_id: string
+          id: number
+          player_name: string
+          score: number
+        }
+        Insert: {
+          created_at?: string
+          game_id: string
+          id?: never
+          player_name: string
+          score: number
+        }
+        Update: {
+          created_at?: string
+          game_id?: string
+          id?: never
+          player_name?: string
+          score?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scores_game_id_fkey"
+            columns: ["game_id"]
+            isOneToOne: false
+            referencedRelation: "games"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
+      get_leaderboard: {
+        Args: { p_game: string; p_limit?: number }
+        Returns: {
+          created_at: string
+          player_name: string
+          rank: number
+          score: number
+        }[]
+      }
+      get_player_best: {
+        Args: { p_game: string; p_name: string }
+        Returns: {
+          created_at: string
+          rank: number
+          score: number
+        }[]
+      }
       health: { Args: never; Returns: string }
+      submit_score: {
+        Args: { p_game: string; p_name: string; p_score: number }
+        Returns: number
+      }
     }
     Enums: {
       [_ in never]: never
