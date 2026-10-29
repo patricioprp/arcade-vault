@@ -1,5 +1,6 @@
 import type { ComponentType } from "react";
 import { AsteroidsCanvas } from "./asteroids";
+import { TetrisCanvas } from "./tetris";
 
 // Lo que un juego real le reporta al reproductor para el HUD.
 export type PlayableGameStats = {
@@ -20,4 +21,5 @@ export const PLAYABLE_GAMES: Partial<
   Record<string, ComponentType<PlayableGameProps>>
 > = {
   rocas: AsteroidsCanvas,
+  caida: TetrisCanvas,
 };
