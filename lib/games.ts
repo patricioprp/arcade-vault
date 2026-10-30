@@ -22,7 +22,7 @@ export const GAMES: Game[] = [
     cat: "ARCADE",
     cover: "cover-bricks",
     color: "cyan",
-    best: 28450,
+    best: 1840,
     difficulty: 2,
   },
   {
