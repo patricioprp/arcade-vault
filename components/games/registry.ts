@@ -1,4 +1,5 @@
 import type { ComponentType } from "react";
+import { ArkanoidCanvas } from "./arkanoid";
 import { AsteroidsCanvas } from "./asteroids";
 import { TetrisCanvas } from "./tetris";
 
@@ -22,4 +23,5 @@ export const PLAYABLE_GAMES: Partial<
 > = {
   rocas: AsteroidsCanvas,
   caida: TetrisCanvas,
+  "bloque-buster": ArkanoidCanvas,
 };
