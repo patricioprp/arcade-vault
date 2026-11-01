@@ -1,6 +1,7 @@
 import type { ComponentType } from "react";
 import { ArkanoidCanvas } from "./arkanoid";
 import { AsteroidsCanvas } from "./asteroids";
+import { SnakeCanvas } from "./snake";
 import { TetrisCanvas } from "./tetris";
 
 // Lo que un juego real le reporta al reproductor para el HUD.
@@ -24,4 +25,5 @@ export const PLAYABLE_GAMES: Partial<
   rocas: AsteroidsCanvas,
   caida: TetrisCanvas,
   "bloque-buster": ArkanoidCanvas,
+  serpentina: SnakeCanvas,
 };

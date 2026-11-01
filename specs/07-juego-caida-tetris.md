@@ -1,6 +1,6 @@
 # SPEC 07 — Juego real CAÍDA (port de Tetris) con leaderboard
 
-> **Estado:** aprobado
+> **Estado:** implementado
 > **Depende de:** SPEC 05, SPEC 06
 > **Fecha:** 2026-10-29
 > **Objetivo:** Portar el Tetris de `references/started-games/03-tetris/` a TypeScript, montarlo como juego jugable en `/juegos/caida/jugar` y habilitar sus puntuaciones en Supabase.

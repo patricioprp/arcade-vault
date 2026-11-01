@@ -1,6 +1,6 @@
 # SPEC 08 — Juego real BLOQUE BUSTER (port de Arkanoid) con leaderboard
 
-> **Estado:** aprobada
+> **Estado:** implementado
 > **Depende de:** SPEC 05, SPEC 06
 > **Fecha:** 2026-10-29
 > **Objetivo:** Portar el Arkanoid de `references/started-games/04-arkanoid/` a TypeScript, montarlo como juego jugable en `/juegos/bloque-buster/jugar` y habilitar sus puntuaciones en Supabase.

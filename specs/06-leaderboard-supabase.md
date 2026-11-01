@@ -1,6 +1,6 @@
 # SPEC 06 — Tablas `games` y `scores` en Supabase y Salón de la Fama real
 
-> **Estado:** aprobado
+> **Estado:** implementado
 > **Depende de:** SPEC 01, SPEC 04, SPEC 05
 > **Fecha:** 2026-10-28
 > **Objetivo:** Guardar las puntuaciones de `rocas` en Supabase (tablas `games` y `scores`) mediante una Server Action y mostrar en el Salón de la Fama y en el detalle `/juegos/[id]` el top 10 y las estadísticas reales por juego.
