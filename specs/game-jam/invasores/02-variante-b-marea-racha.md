@@ -333,6 +333,8 @@ Convenciones:
 
 - **Sí:** reusar la entrada `invasores` del catálogo. Ya es un SHOOTER de filas alienígenas con portada `cover-invaders` y fila en `public.games`.
 - **No:** id nuevo `marea-invasora`. Obliga a otra entrada, otra portada y una migración `insert`, y deja INVASORES como demo duplicada.
+- **Sí:** persistir con `update public.games set playable = true where id = 'invasores'`, igual que `caida`, `bloque-buster` y `serpentina`. La fila `('invasores', 'INVASORES', false)` ya existe desde `20261028030700_games_scores.sql`; con `playable = true`, `submit_score` acepta sus puntuaciones y `get_leaderboard` las devuelve.
+- **No:** `insert` en `public.games`. Chocaría con la clave primaria `id` porque la fila ya existe.
 - **Sí:** marea continua de filas que aparecen arriba sin oleadas. Mantiene la presión constante y da partidas que escalan solas, sin pausas entre oleadas.
 - **No:** marcha por pasos con bajada al borde. Con filas que entran sin parar, la bajada por borde haría saltos de 20 px imprevisibles en toda la marea.
 - **Sí:** sin escudos. Sin cobertura, el eje del juego es la precisión, que es lo que premia la racha; además elimina el riesgo del daño por celdas.

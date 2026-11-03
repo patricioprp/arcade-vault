@@ -77,6 +77,12 @@ Secciones obligatorias, en este orden:
 
 Si el id es **nuevo**, la spec incluye además: entrada en `lib/games.ts` (con `short`, `long`, categoría, color, `difficulty`, `best` alcanzable y portada), clase `.cover-<x>` en `app/globals.css` diseñada con `/frontend-design`, y migración con `insert into public.games (id, title, playable) values (...)`.
 
+**Persistencia (siempre):** el juego tiene que quedar guardando puntuaciones en Supabase igual que los anteriores. Antes de escribir el SQL, buscá el id con `Grep` en `supabase/migrations/`:
+
+- Si la fila ya existe (id simulado del catálogo): migración `playable_<id>` con `update public.games set playable = true where id = '<id>';`, y en Decisiones una línea **No:** `insert`, explicando que chocaría con la clave primaria porque la fila ya existe (citá la migración que la creó).
+- Si no existe (id nuevo): migración con `insert into public.games (id, title, playable) values ('<id>', '<TÍTULO>', true);`.
+- En ambos casos, el plan verifica con `execute_sql` que `submit_score('<id>','TEST',100)` inserta y que `get_leaderboard('<id>')` la devuelve, y después borra la fila de prueba.
+
 Reglas de redacción:
 
 - **Números concretos siempre** (px, px/s, ms, puntos, vidas, niveles). Paleta neón de la plataforma: cian `#00f5ff`, magenta `#ff006e`, amarillo `#f5ff00`, verde `#00ff88`.

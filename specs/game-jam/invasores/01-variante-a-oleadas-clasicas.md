@@ -338,6 +338,8 @@ Convenciones:
 
 - **Sí:** reusar la entrada `invasores` del catálogo. Ya es un SHOOTER de filas alienígenas con portada `cover-invaders` y fila en `public.games`.
 - **No:** id nuevo `space-invaders`. Obliga a otra entrada, otra portada y una migración `insert`, y deja INVASORES como demo duplicada.
+- **Sí:** persistir con `update public.games set playable = true where id = 'invasores'`, igual que `caida`, `bloque-buster` y `serpentina`. La fila `('invasores', 'INVASORES', false)` ya existe desde `20261028030700_games_scores.sql`; con `playable = true`, `submit_score` acepta sus puntuaciones y `get_leaderboard` las devuelve.
+- **No:** `insert` en `public.games`. Chocaría con la clave primaria `id` porque la fila ya existe.
 - **Sí:** Space Invaders clásico para el tema. Es el shooter fijo más reconocible, encaja en canvas 2D, teclado y un jugador, y equilibra el catálogo jugable (hoy un solo SHOOTER, ROCAS, y ningún verde de dificultad 3).
 - **Sí:** formación de 5×11 con marcha por pasos y aceleración por vivos. Es la tensión central del original.
 - **No:** movimiento continuo de la formación. Pierde el ritmo de la marcha y el frame alterno.
