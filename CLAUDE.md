@@ -50,6 +50,15 @@ Plans, reasons about and decides which game fits Arcade Vault next. It never wri
   - Updated at the end of every run; existing rows are updated, not duplicated. Tell the agent when you accept/discard an idea so it records it.
 - **Pipeline**: `@game-planner` → `/nuevo-juego <id>` (spec) → `/spec-impl` (branch + implementation) → update `references/implemented-games.md` (the agent then marks the game `implementado`).
 - **Current state** (2026-11-03): 20 suggestions, 5 per category (top: `duelo-pixel` 23 with redesigned vs-CPU scoring, `invasores` 22, `columnas` 22). Prioritized checklist with `/nuevo-juego` handoffs in `.claude/agents/game-suggestion-todo.md`. All reference games in `started-games/` are already ported.
+
+### `@game-jam` (`.claude/agents/game-jam.md`)
+
+Takes a **theme** and designs **one** game for it, written as **at least two complete specs**, each an alternative variant (different mechanic, rules or scoring) of the same game. Replies in Spanish; decides on its own (no questions) and records every choice under **Decisiones**.
+
+- **Config**: `model: opus`, `tools: Read, Glob, Grep, Write, Edit` (no Bash), no memory. Writes only inside `specs/game-jam/<game-id>/`.
+- **Output**: `specs/game-jam/<game-id>/<NN>-variante-<a|b|c>-<slug>.md` (`01` = A, `02` = B, `03` = C), status `borrador`, no global `NN`. Same sections and level of detail as specs 07/08/09, with an extra `Tema` line in the header. Reads `contrato.md`, `plantilla-spec.md`, `lib/games.ts`, the registry and `@game-planner`'s memory (read-only, to skip `descartado` ideas).
+- **Pipeline**: `@game-jam <tema>` → review the variants → copy the chosen one to `specs/NN-juego-<id>-<slug>.md` as `aprobado` → `/spec-impl`.
+
 - New agents are only picked up by a fresh Claude Code session (the `/agents` wizard was removed; edit `.claude/agents/` directly).
 
 ## Commands
