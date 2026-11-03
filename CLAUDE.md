@@ -19,12 +19,38 @@ The list of implemented (playable) games is in [references/implemented-games.md]
 - Write or update a spec in `specs/NN-slug.md` with `/spec` before implementing, then implement it with `/spec-impl` (creates branch `spec-NN-slug` automatically, see `specs/.spec-config.yml`). Skills from [Klerith/fernando-skills](https://github.com/Klerith/fernando-skills) (`npx skills@latest add Klerith/fernando-skills`).
 - Specs so far: 01 MVP screens · 02 homepage · 03 about/contact · 04 Supabase base · 05 ROCAS · 06 leaderboard · 07 CAÍDA · 08 BLOQUE BUSTER · 09 SERPENTINA.
 - One PR per spec, merged into `main`.
+- To choose the next game, ask `@game-planner` first (see Agents below); its handoff feeds `/nuevo-juego`.
 
 ## Skills (`.claude/skills/`)
 
 - `/spec`, `/spec-impl` — spec authoring and implementation (above).
 - `/nuevo-juego` — project skill to add or port a playable game (from `references/started-games/`, a simulated catalog id, or a new idea). Produces the spec ready for `/spec-impl`. Its `contrato.md` is the source of truth for the game ↔ player contract and file layout.
 - `/frontend-design` — **always** use it to design UI (covers, screens, components).
+
+## Agents (`.claude/agents/`)
+
+### `@game-planner` (`.claude/agents/game-planner.md`)
+
+Plans, reasons about and decides which game fits Arcade Vault next. It never writes app code or specs: it recommends and hands off to `/nuevo-juego`. Replies in Spanish.
+
+- **Config**: `model: opus`, `tools: Read, Glob, Grep, Write, Edit` (no Bash), `memory: project`. Writes only inside its memory directory.
+- **Reads before deciding** (fresh every run): its `MEMORY.md`, `references/implemented-games.md`, `lib/games.ts` (catalog; ids missing from `components/games/registry.ts` are simulated, i.e. cheap candidates), `references/started-games/`, `.claude/skills/nuevo-juego/contrato.md` and `specs/`. If memory contradicts the repo, the repo wins and memory is corrected.
+- **Rubric** (1–5 each, total /25):
+  - Aesthetics: retro/CRT/neon look and a good uppercase Spanish title.
+  - Competition: clearly growing score, short replayable runs, high ceiling (RPC accepts 1–10,000,000).
+  - Technical fit: canvas 2D, single player, keyboard, pure engine, `onStats`/`onGameOver`.
+  - Catalog balance: under-represented category/color/difficulty among playable games.
+  - Effort (inverse): 5 = reference in `started-games/` or existing simulated id; 1 = new complex mechanic.
+- **Process**: 3–5 candidates → filter out implemented and `descartado` ones (flags repeats of earlier `sugerido`) → score → 1 recommendation + 1–2 alternatives.
+- **Output**: comparison table, card for the pick (id, TITLE, category, color, difficulty, one-line catalog description, mechanic and scoring, why now, risks) and a ready-to-paste handoff line (`/nuevo-juego <id or description>`).
+- **Memory** (`.claude/agent-memory/game-planner/`, committed to git; `MEMORY.md` is auto-injected when the agent starts):
+  - `MEMORY.md` (<200 lines): catalog snapshot, suggestions table `| Fecha | id | Título | Categoría | Estado | Motivo |` with absolute dates, and a **Preferencias del usuario** section the agent must respect.
+  - States: `sugerido` · `aceptado` · `descartado` · `implementado`, plus `evaluado` (scored but not proposed). `descartado` ideas are never re-proposed unless the user asks.
+  - Long cards go in `ideas/<id>.md`, linked from the table.
+  - Updated at the end of every run; existing rows are updated, not duplicated. Tell the agent when you accept/discard an idea so it records it.
+- **Pipeline**: `@game-planner` → `/nuevo-juego <id>` (spec) → `/spec-impl` (branch + implementation) → update `references/implemented-games.md` (the agent then marks the game `implementado`).
+- **Current state** (2026-11-03): 20 suggestions, 5 per category (top: `duelo-pixel` 23 with redesigned vs-CPU scoring, `invasores` 22, `columnas` 22). Prioritized checklist with `/nuevo-juego` handoffs in `.claude/agents/game-suggestion-todo.md`. All reference games in `started-games/` are already ported.
+- New agents are only picked up by a fresh Claude Code session (the `/agents` wizard was removed; edit `.claude/agents/` directly).
 
 ## Commands
 
