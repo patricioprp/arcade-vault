@@ -1,9 +1,11 @@
 // Render de CAÍDA: bloques como tubos de neón (relleno translúcido + borde con glow)
 // en un pozo con el halo de .cover-tetro. Sin HUD ni "GAME OVER": eso es del reproductor.
+// Todos los colores salen de la paleta de la skin (skins.ts); transparencias con globalAlpha.
 
 import type { TetrisGame } from "./engine";
 import { WORLD_H, WORLD_W } from "./engine";
-import { COLS, ROWS, type Cell, type Shape } from "./pieces";
+import { COLS, ROWS, type PieceType, type Shape } from "./pieces";
+import { mixHex, type TetrisPalette } from "./skins";
 
 const CELL = 28;
 const BOARD_X = 260;
@@ -17,36 +19,16 @@ const PANEL_Y = BOARD_Y;
 const PANEL_W = 4 * NEXT_CELL + 40;
 const PANEL_H = 4 * NEXT_CELL + 58;
 
-// RGB por pieza (índice = PieceType). Los 4 tokens de la plataforma + naranja y violeta
-// de .cover-tetro + un azul eléctrico para J.
-const PIECE_RGB: [number, number, number][] = [
-  [0, 0, 0],
-  [0, 245, 255], // I — --cyan
-  [245, 255, 0], // O — --yellow
-  [170, 0, 255], // T — violeta de .cover-tetro
-  [0, 255, 136], // S — --green
-  [255, 0, 110], // Z — --magenta
-  [61, 123, 255], // J — azul eléctrico
-  [255, 119, 0], // L — naranja de .cover-tetro
-];
-const DEAD_RGB: [number, number, number] = [74, 79, 112]; // --ink-faint
-
-const COLORS = {
-  frame: "#00f5ff", // --cyan
-  well: "#2a004a", // halo de .cover-tetro
-  dot: "rgba(230, 233, 255, 0.10)",
-  label: "#8a8fb5", // --ink-dim
-} as const;
-
 export function drawTetris(
   ctx: CanvasRenderingContext2D,
   game: TetrisGame,
+  palette: TetrisPalette,
   labelFont: string,
 ): void {
-  ctx.fillStyle = "#000";
+  ctx.fillStyle = palette.background;
   ctx.fillRect(0, 0, WORLD_W, WORLD_H);
 
-  drawWell(ctx);
+  drawWell(ctx, palette);
 
   // Tablero fijado, con las filas apagadas de abajo hacia arriba según fade.
   for (let r = 0; r < ROWS; r++) {
@@ -56,6 +38,7 @@ export function drawTetris(
       if (v)
         drawBlock(
           ctx,
+          palette,
           BOARD_X + c * CELL,
           BOARD_Y + r * CELL,
           CELL,
@@ -70,16 +53,25 @@ export function drawTetris(
     const { shape, x, y } = game.current;
     drawShape(
       ctx,
+      palette,
       shape,
       BOARD_X + x * CELL,
       BOARD_Y + game.ghostY() * CELL,
       CELL,
-      0.2,
+      palette.ghostAlpha,
     );
-    drawShape(ctx, shape, BOARD_X + x * CELL, BOARD_Y + y * CELL, CELL, 1);
+    drawShape(
+      ctx,
+      palette,
+      shape,
+      BOARD_X + x * CELL,
+      BOARD_Y + y * CELL,
+      CELL,
+      1,
+    );
   }
 
-  drawNextPanel(ctx, game.next.shape, labelFont);
+  drawNextPanel(ctx, palette, game.next.shape, labelFont);
 }
 
 // 0 = encendida, 1 = apagada. La fila de abajo se apaga primero.
@@ -88,7 +80,7 @@ function rowDeadness(row: number, fade: number) {
   return Math.min(1, Math.max(0, fade * ROWS - fromBottom));
 }
 
-function drawWell(ctx: CanvasRenderingContext2D) {
+function drawWell(ctx: CanvasRenderingContext2D, palette: TetrisPalette) {
   const halo = ctx.createRadialGradient(
     BOARD_X + BOARD_W / 2,
     BOARD_Y + BOARD_H,
@@ -97,39 +89,46 @@ function drawWell(ctx: CanvasRenderingContext2D) {
     BOARD_Y + BOARD_H,
     BOARD_H * 0.9,
   );
-  halo.addColorStop(0, COLORS.well);
-  halo.addColorStop(1, "rgba(10, 10, 24, 0.6)");
+  halo.addColorStop(0, palette.wellInner);
+  halo.addColorStop(1, palette.wellOuter);
   ctx.fillStyle = halo;
   ctx.fillRect(BOARD_X, BOARD_Y, BOARD_W, BOARD_H);
 
   // Puntos en las intersecciones: marcan la cuadrícula sin rayar el pozo.
-  ctx.fillStyle = COLORS.dot;
+  ctx.save();
+  ctx.globalAlpha = palette.gridDotAlpha;
+  ctx.fillStyle = palette.gridDot;
   for (let r = 1; r < ROWS; r++)
     for (let c = 1; c < COLS; c++)
       ctx.fillRect(BOARD_X + c * CELL - 1, BOARD_Y + r * CELL - 1, 2, 2);
+  ctx.restore();
 
-  drawFrame(ctx, BOARD_X, BOARD_Y, BOARD_W, BOARD_H);
+  drawFrame(ctx, palette, BOARD_X, BOARD_Y, BOARD_W, BOARD_H);
 }
 
 function drawFrame(
   ctx: CanvasRenderingContext2D,
+  palette: TetrisPalette,
   x: number,
   y: number,
   w: number,
   h: number,
 ) {
   ctx.save();
-  ctx.shadowColor = COLORS.frame;
-  ctx.shadowBlur = 12;
-  ctx.strokeStyle = COLORS.frame;
-  ctx.globalAlpha = 0.7;
-  ctx.lineWidth = 2;
+  if (palette.frameGlow > 0) {
+    ctx.shadowColor = palette.frame;
+    ctx.shadowBlur = palette.frameGlow;
+  }
+  ctx.strokeStyle = palette.frame;
+  ctx.globalAlpha = palette.frameAlpha;
+  ctx.lineWidth = palette.frameWidth;
   ctx.strokeRect(x - 3, y - 3, w + 6, h + 6);
   ctx.restore();
 }
 
 function drawShape(
   ctx: CanvasRenderingContext2D,
+  palette: TetrisPalette,
   shape: Shape,
   px: number,
   py: number,
@@ -139,56 +138,96 @@ function drawShape(
   for (let r = 0; r < shape.length; r++)
     for (let c = 0; c < shape[r].length; c++) {
       const v = shape[r][c];
-      if (v) drawBlock(ctx, px + c * size, py + r * size, size, v, alpha, 0);
+      if (v)
+        drawBlock(
+          ctx,
+          palette,
+          px + c * size,
+          py + r * size,
+          size,
+          v,
+          alpha,
+          0,
+        );
     }
 }
 
-// Tubo de neón: relleno translúcido, borde con glow y un brillo pixel arriba a la izquierda.
-// `dead` (0 → 1) mezcla el color hacia gris y apaga el glow.
+// Bloque: relleno, borde (con glow según la skin), patrón opcional y brillo pixel arriba a la izquierda.
+// `dead` (0 → 1) mezcla el color hacia `palette.dead` y apaga el glow y el brillo.
 function drawBlock(
   ctx: CanvasRenderingContext2D,
+  palette: TetrisPalette,
   x: number,
   y: number,
   size: number,
-  type: Cell,
+  type: PieceType,
   alpha: number,
   dead: number,
 ) {
-  const [r, g, b] = mix(PIECE_RGB[type], DEAD_RGB, dead);
-  const rgb = `${r}, ${g}, ${b}`;
+  const color = mixHex(palette.pieces[type], palette.dead, dead);
   const inset = 2;
   const s = size - inset * 2;
 
   ctx.save();
-  ctx.globalAlpha = alpha;
 
-  ctx.fillStyle = `rgba(${rgb}, ${0.22 + dead * 0.18})`;
+  ctx.globalAlpha = alpha * (palette.fillAlpha + dead * palette.deadFillBoost);
+  ctx.fillStyle = color;
   ctx.fillRect(x + inset, y + inset, s, s);
 
-  ctx.shadowColor = `rgb(${rgb})`;
-  ctx.shadowBlur = 10 * (1 - dead);
-  ctx.strokeStyle = `rgb(${rgb})`;
-  ctx.lineWidth = 2;
+  ctx.globalAlpha = alpha;
+  const glow = palette.blockGlow * (1 - dead);
+  if (glow > 0) {
+    ctx.shadowColor = color;
+    ctx.shadowBlur = glow;
+  }
+  ctx.strokeStyle = palette.blockOutline ?? color;
+  ctx.lineWidth = palette.blockStrokeWidth;
   ctx.strokeRect(x + inset + 1, y + inset + 1, s - 2, s - 2);
-
   ctx.shadowBlur = 0;
-  ctx.fillStyle = `rgba(255, 255, 255, ${0.6 * (1 - dead)})`;
-  const sheen = Math.round(size / 7);
-  ctx.fillRect(x + inset + 3, y + inset + 3, sheen, sheen);
+
+  const mark = palette.marks[type];
+  if (mark === "dot") {
+    const d = Math.round(size / 4);
+    const o = Math.floor((size - d) / 2);
+    ctx.fillStyle = color;
+    ctx.fillRect(x + o, y + o, d, d);
+  } else if (mark === "cross") {
+    const a = inset + 6;
+    const b = size - a;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(x + a, y + a);
+    ctx.lineTo(x + b, y + b);
+    ctx.moveTo(x + b, y + a);
+    ctx.lineTo(x + a, y + b);
+    ctx.stroke();
+  }
+
+  if (palette.sheenAlpha > 0) {
+    ctx.globalAlpha = alpha * palette.sheenAlpha * (1 - dead);
+    ctx.fillStyle = palette.sheen;
+    const sheen = Math.round(size / 7);
+    ctx.fillRect(x + inset + 3, y + inset + 3, sheen, sheen);
+  }
 
   ctx.restore();
 }
 
 function drawNextPanel(
   ctx: CanvasRenderingContext2D,
+  palette: TetrisPalette,
   shape: Shape,
   labelFont: string,
 ) {
-  ctx.fillStyle = "rgba(10, 10, 24, 0.8)";
+  ctx.save();
+  ctx.globalAlpha = palette.panelBgAlpha;
+  ctx.fillStyle = palette.panelBg;
   ctx.fillRect(PANEL_X, PANEL_Y, PANEL_W, PANEL_H);
-  drawFrame(ctx, PANEL_X, PANEL_Y, PANEL_W, PANEL_H);
+  ctx.restore();
+  drawFrame(ctx, palette, PANEL_X, PANEL_Y, PANEL_W, PANEL_H);
 
-  ctx.fillStyle = COLORS.label;
+  ctx.fillStyle = palette.label;
   ctx.font = `10px ${labelFont}`;
   ctx.textAlign = "center";
   ctx.textBaseline = "top";
@@ -213,17 +252,5 @@ function drawNextPanel(
   const areaH = PANEL_H - 36 - 10;
   const px = PANEL_X + (PANEL_W - w) / 2 - minC * NEXT_CELL;
   const py = areaY + (areaH - h) / 2 - minR * NEXT_CELL;
-  drawShape(ctx, shape, px, py, NEXT_CELL, 1);
-}
-
-function mix(
-  a: [number, number, number],
-  b: [number, number, number],
-  t: number,
-): [number, number, number] {
-  return [
-    Math.round(a[0] + (b[0] - a[0]) * t),
-    Math.round(a[1] + (b[1] - a[1]) * t),
-    Math.round(a[2] + (b[2] - a[2]) * t),
-  ];
+  drawShape(ctx, palette, shape, px, py, NEXT_CELL, 1);
 }

@@ -1,4 +1,5 @@
 import type { ComponentType } from "react";
+import type { SkinId } from "@/lib/skins";
 import { ArkanoidCanvas } from "./arkanoid";
 import { AsteroidsCanvas } from "./asteroids";
 import { SnakeCanvas } from "./snake";
@@ -14,6 +15,7 @@ export type PlayableGameStats = {
 
 export type PlayableGameProps = {
   paused: boolean; // true con pausa o con el modal abierto
+  skin: SkinId; // skin elegida en el reproductor; cambia en caliente sin remontar
   onStats: (stats: PlayableGameStats) => void;
   onGameOver: (finalScore: number) => void;
 };
@@ -27,3 +29,12 @@ export const PLAYABLE_GAMES: Partial<
   "bloque-buster": ArkanoidCanvas,
   serpentina: SnakeCanvas,
 };
+
+// Juegos que ya implementan skins: el reproductor solo muestra el selector para estos ids.
+// Cada spec de skins agrega el suyo.
+export const SKINNED_GAMES: ReadonlySet<string> = new Set([
+  "rocas",
+  "caida",
+  "bloque-buster",
+  "serpentina",
+]);

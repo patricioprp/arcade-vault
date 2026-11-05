@@ -9,6 +9,7 @@ import {
   type TetrisStats,
 } from "@/lib/tetris/engine";
 import { drawTetris } from "@/lib/tetris/render";
+import { SKINS } from "@/lib/tetris/skins";
 import type { PlayableGameProps, PlayableGameStats } from "./registry";
 
 const GAME_OVER_DELAY = 1000; // ms para que se vea el apagado de las filas antes del modal
@@ -42,6 +43,7 @@ function toHud(s: TetrisStats): PlayableGameStats {
 
 export function TetrisCanvas({
   paused,
+  skin,
   onStats,
   onGameOver,
 }: PlayableGameProps) {
@@ -53,12 +55,14 @@ export function TetrisCanvas({
   const actionsRef = useRef<TetrisAction[]>([]);
   const [started, setStarted] = useState(false);
 
-  // Callbacks del reproductor siempre actualizados, sin reiniciar el juego cuando cambian.
+  // Callbacks y skin del reproductor siempre actualizados, sin reiniciar el juego cuando cambian.
   const onStatsRef = useRef(onStats);
   const onGameOverRef = useRef(onGameOver);
+  const skinRef = useRef(skin);
   useEffect(() => {
     onStatsRef.current = onStats;
     onGameOverRef.current = onGameOver;
+    skinRef.current = skin;
   });
 
   // Montaje: canvas con devicePixelRatio, partida nueva y primer frame detrás del overlay de inicio.
@@ -90,9 +94,10 @@ export function TetrisCanvas({
     document.fonts.ready.then(() => {
       if (!alive || !fontProbeRef.current) return;
       fontRef.current = getComputedStyle(fontProbeRef.current).fontFamily;
-      if (gameRef.current === game) drawTetris(ctx, game, fontRef.current);
+      if (gameRef.current === game)
+        drawTetris(ctx, game, SKINS[skinRef.current], fontRef.current);
     });
-    drawTetris(ctx, game, fontRef.current);
+    drawTetris(ctx, game, SKINS[skinRef.current], fontRef.current);
 
     return () => {
       alive = false;
@@ -119,13 +124,22 @@ export function TetrisCanvas({
       const actions = actionsRef.current;
       actionsRef.current = [];
       game.update(dt, { actions });
-      drawTetris(ctx, game, fontRef.current);
+      drawTetris(ctx, game, SKINS[skinRef.current], fontRef.current);
       raf = requestAnimationFrame(frame);
     };
     raf = requestAnimationFrame(frame);
 
     return () => cancelAnimationFrame(raf);
   }, [started, paused]);
+
+  // Cambio de skin: un frame con la paleta nueva, para que se vea al instante también antes de empezar,
+  // en pausa o con el modal (con el loop andando, el próximo frame ya la usa vía skinRef).
+  useEffect(() => {
+    const game = gameRef.current;
+    const ctx = ctxRef.current;
+    if (!game || !ctx) return;
+    drawTetris(ctx, game, SKINS[skin], fontRef.current);
+  }, [skin]);
 
   // Teclado. Con pausa o modal abierto no captura nada, para no bloquear el input del modal.
   useEffect(() => {

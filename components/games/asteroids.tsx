@@ -8,6 +8,7 @@ import {
   type AsteroidsStats,
 } from "@/lib/asteroids/engine";
 import { drawAsteroids } from "@/lib/asteroids/render";
+import { SKINS } from "@/lib/asteroids/skins";
 import type { PlayableGameProps, PlayableGameStats } from "./registry";
 
 const GAME_OVER_DELAY = 1000; // ms para que se vea la explosión de la nave antes del modal
@@ -43,6 +44,7 @@ function toHud(s: AsteroidsStats): PlayableGameStats {
 
 export function AsteroidsCanvas({
   paused,
+  skin,
   onStats,
   onGameOver,
 }: PlayableGameProps) {
@@ -52,13 +54,17 @@ export function AsteroidsCanvas({
   const keysRef = useRef<Keys>({ ...NO_KEYS });
   const fireRef = useRef(false);
   const [started, setStarted] = useState(false);
+  // true mientras corre el rAF; si no corre, un cambio de skin se redibuja a mano.
+  const loopRef = useRef(false);
 
-  // Callbacks del reproductor siempre actualizados, sin reiniciar el juego cuando cambian.
+  // Callbacks y skin del reproductor siempre actualizados, sin reiniciar el juego cuando cambian.
   const onStatsRef = useRef(onStats);
   const onGameOverRef = useRef(onGameOver);
+  const skinRef = useRef(skin);
   useEffect(() => {
     onStatsRef.current = onStats;
     onGameOverRef.current = onGameOver;
+    skinRef.current = skin;
   });
 
   // Montaje: canvas con devicePixelRatio, partida nueva y primer frame detrás del overlay de inicio.
@@ -84,7 +90,7 @@ export function AsteroidsCanvas({
     });
     gameRef.current = game;
     ctxRef.current = ctx;
-    drawAsteroids(ctx, game, performance.now());
+    drawAsteroids(ctx, game, SKINS[skinRef.current], performance.now());
 
     return () => {
       clearTimeout(gameOverTimer);
@@ -98,6 +104,7 @@ export function AsteroidsCanvas({
     if (!started || paused) return;
     let raf = 0;
     let last: number | null = null;
+    loopRef.current = true;
 
     const frame = (ts: number) => {
       const game = gameRef.current;
@@ -107,13 +114,24 @@ export function AsteroidsCanvas({
       last = ts;
       game.update(dt, { ...keysRef.current, fire: fireRef.current });
       fireRef.current = false;
-      drawAsteroids(ctx, game, ts);
+      drawAsteroids(ctx, game, SKINS[skinRef.current], ts);
       raf = requestAnimationFrame(frame);
     };
     raf = requestAnimationFrame(frame);
 
-    return () => cancelAnimationFrame(raf);
+    return () => {
+      cancelAnimationFrame(raf);
+      loopRef.current = false;
+    };
   }, [started, paused]);
+
+  // Cambio de skin con el loop parado (antes de empezar, en pausa o con el modal): un frame con la paleta nueva.
+  useEffect(() => {
+    const game = gameRef.current;
+    const ctx = ctxRef.current;
+    if (!game || !ctx || loopRef.current) return;
+    drawAsteroids(ctx, game, SKINS[skin], performance.now());
+  }, [skin]);
 
   // Teclado. Con pausa o modal abierto no captura nada, para no bloquear el input del modal.
   useEffect(() => {
