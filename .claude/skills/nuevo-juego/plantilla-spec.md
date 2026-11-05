@@ -35,6 +35,7 @@ _Plantilla (todo lo que sigue va al archivo de la spec):_
 - Port a TypeScript en `lib/<slug>/`: entidades, motor sin DOM y render separado.
 - Misma jugabilidad que <origen>: <constantes, puntos, vidas, niveles, velocidades, condición de fin y victoria>.
 - Render con la paleta neón de la plataforma, diseñado con `/frontend-design`.
+- 3 skins (`neon`, `retro`, `clasico`) en `lib/<slug>/skins.ts`; `<id>` en `SKINNED_GAMES` (sección 10 de `contrato.md`).
 - Mundo lógico <W>×<H> (4:3) escalado al `.crt-screen` con `devicePixelRatio`. [si no es 4:3: <cómo se encuadra>]
 - Client Component `components/games/<slug>.tsx` registrado como `<id>` en `PLAYABLE_GAMES`.
 - Pantalla de inicio "PULSA ESPACIO PARA EMPEZAR" con los controles.
@@ -83,14 +84,38 @@ export class <X>Game {
 ```
 
 ```ts
-// lib/<slug>/render.ts
-export function draw<X>(ctx: CanvasRenderingContext2D, game: <X>Game, now: number): void;
-// Paleta: <entidad> #00f5ff, <entidad> #ff006e, <entidad> #f5ff00, <entidad> #00ff88. Glow con shadowBlur.
+// lib/<slug>/render.ts — sin colores fijos; transparencias con globalAlpha
+export function draw<X>(ctx: CanvasRenderingContext2D, game: <X>Game, palette: <X>Palette, now: number): void;
 ```
+
+```ts
+// lib/<slug>/skins.ts
+import type { SkinId } from "@/lib/skins";
+
+export type <X>Palette = {
+  background: string;
+  // <entidad>: string;   // hex #rrggbb
+  // <algo>Alpha: number; // transparencias
+  // glow: { <entidad>: number }; // shadowBlur, 0 = sin glow
+};
+
+const neon: <X>Palette = { /* <entidad> #00f5ff, <entidad> #ff006e, <entidad> #f5ff00, <entidad> #00ff88; glow 8–14 */ };
+const retro: <X>Palette = { /* fósforo <verde #33ff66 | ámbar #ffb000> en 3–4 intensidades; glow 3–6 */ };
+const clasico: <X>Palette = { /* colores planos de <nombre original>; glow 0 */ };
+
+export const SKINS = { neon, retro, clasico } satisfies Record<SkinId, <X>Palette>;
+```
+
+Contraste (≥ 4,5:1 contra el punto más claro del fondo):
+
+| Elemento jugable | `neon` | `retro` | `clasico` |
+| ---------------- | ------ | ------- | --------- |
+| <entidad>        | <x:1>  | <x:1>   | <x:1>     |
 
 ```ts
 // components/games/registry.ts
 export const PLAYABLE_GAMES = { rocas: AsteroidsCanvas, <id>: <X>Canvas };
+export const SKINNED_GAMES = new Set(["rocas", <…>, "<id>"]);
 ```
 
 ```sql
@@ -113,9 +138,9 @@ Convenciones:
 ## Plan de implementación
 
 1. Crear `lib/<slug>/entities.ts` y `lib/<slug>/engine.ts` portando <funciones> de <origen>, sin dibujo ni DOM. Quitar <reinicio, pausa propia, selector>. Verificar con `npx tsc --noEmit`.
-2. Crear `lib/<slug>/render.ts` sin HUD ni textos de fin. Usar `/frontend-design` para colores, grosores y glow.
+2. Crear `lib/<slug>/skins.ts` con las 3 paletas y `lib/<slug>/render.ts` sin HUD, sin textos de fin y sin colores fijos (recibe `palette`). Usar `/frontend-design` para colores, grosores y glow.
 3. [si assets] Copiar <archivos> a `public/games/<id>/`.
-4. Crear `components/games/<slug>.tsx` copiando la estructura de `components/games/asteroids.tsx` (sección 6 de `contrato.md`). Registrarlo como `<id>` en `PLAYABLE_GAMES`.
+4. Crear `components/games/<slug>.tsx` copiando la estructura de `components/games/asteroids.tsx` (sección 6 de `contrato.md`, incluido el cambio de skin en caliente). Registrarlo como `<id>` en `PLAYABLE_GAMES` y en `SKINNED_GAMES`.
 5. [si id nuevo] Agregar `<id>` a `lib/games.ts` y `.cover-<x>` a `app/globals.css`, con `/frontend-design`.
 6. Crear la migración con `npm run db:new -- playable_<id>` y aplicarla con `npm run db:push`. Verificar con `execute_sql`: `submit_score('<id>','TEST',100)` inserta y `get_leaderboard('<id>')` la devuelve. Borrar la fila de prueba.
 7. Probar en `npm run dev` con Playwright (sección 9 de `contrato.md`): `/juegos/<id>/jugar` completo, Salón y detalle con la marca, otro juego simulado en MODO DEMO, `rocas` intacto. Revisar la consola.
@@ -141,6 +166,9 @@ Convenciones:
 - [ ] PAUSA, `P` y `Escape` congelan y reanudan sin salto; cambiar de pestaña deja la partida en pausa.
 - [ ] Ir a SALIR y volver no duplica la velocidad ni los inputs.
 - [ ] Los trazos se ven nítidos con `devicePixelRatio` 2.
+- [ ] El selector muestra `NEÓN` · `RETRO` · `CLÁSICO`; las 3 skins cambian en caliente (sin reiniciar la partida) y persisten al recargar.
+- [ ] `Grep` de `#[0-9a-fA-F]{3,8}|rgba?\(` en `lib/<slug>/render.ts` no devuelve colores fijos.
+- [ ] Contraste ≥ 4,5:1 de cada elemento jugable en las 3 skins, anotado en la tabla de Modelo de datos.
 - [ ] `/juegos/rocas/jugar` sigue funcionando y los juegos sin registro siguen en MODO DEMO.
 - [ ] `get_advisors` (security) no suma avisos.
 - [ ] No hay errores ni warnings de hidratación en la consola.
@@ -155,6 +183,7 @@ Convenciones:
 - **Sí:** habilitar el leaderboard con una migración de datos. Las funciones y pantallas de SPEC 06 ya son genéricas.
 - **No:** regenerar tipos. No cambia el esquema.
 - **Sí / No:** <encuadre 4:3, vidas, extra del HUD, assets, sonido, controles, escala de puntuación>.
+- **Sí:** tono de `retro` <verde | ámbar>. <Motivo.>
 
 ## Riesgos
 
@@ -173,4 +202,3 @@ Convenciones:
 - <Lista corta del "Fuera de alcance".>
 
 Cada uno de esos, si llega, va en su propia spec.
-

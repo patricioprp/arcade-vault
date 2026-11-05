@@ -5,9 +5,12 @@ import { useEffect, useState } from "react";
 import { submitScore } from "@/app/juegos/[id]/jugar/actions";
 import {
   PLAYABLE_GAMES,
+  SKINNED_GAMES,
   type PlayableGameStats,
 } from "@/components/games/registry";
 import type { Game } from "@/lib/games";
+import { SKIN_IDS, SKIN_LABELS } from "@/lib/skins";
+import { useSkin } from "@/lib/skin-store";
 import { useUser } from "@/lib/user-store";
 
 type Run = { score: number; level: number };
@@ -18,6 +21,9 @@ export function GamePlayer({ game }: { game: Game }) {
   // Juego real registrado para este id; si no hay, se usa la arena simulada.
   const Playable = PLAYABLE_GAMES[game.id];
   const { user } = useUser();
+  const { skin, setSkin } = useSkin();
+  // El selector solo aparece en los juegos que ya implementan skins.
+  const showSkins = Playable !== undefined && SKINNED_GAMES.has(game.id);
   const [run, setRun] = useState<Run>(INITIAL_RUN);
   const [lives, setLives] = useState(3);
   const [paused, setPaused] = useState(false);
@@ -132,6 +138,21 @@ export function GamePlayer({ game }: { game: Game }) {
           )}
         </div>
         <div className="hud-actions">
+          {showSkins && (
+            <div className="skin-picker" role="group" aria-label="Skin">
+              {SKIN_IDS.map((id) => (
+                <button
+                  key={id}
+                  type="button"
+                  className="btn"
+                  aria-pressed={skin === id}
+                  onClick={() => setSkin(id)}
+                >
+                  {SKIN_LABELS[id]}
+                </button>
+              ))}
+            </div>
+          )}
           <button className="btn yellow" onClick={() => setPaused((p) => !p)}>
             {paused ? "REANUDAR" : "PAUSA"}
           </button>
@@ -150,6 +171,7 @@ export function GamePlayer({ game }: { game: Game }) {
             <Playable
               key={runKey}
               paused={paused || over}
+              skin={skin}
               onStats={onStats}
               onGameOver={onGameOver}
             />

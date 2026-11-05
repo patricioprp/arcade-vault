@@ -9,6 +9,7 @@ import {
   type ArkanoidStats,
 } from "@/lib/arkanoid/engine";
 import { drawArkanoid } from "@/lib/arkanoid/render";
+import { SKINS } from "@/lib/arkanoid/skins";
 import type { PlayableGameProps, PlayableGameStats } from "./registry";
 
 const GAME_OVER_DELAY = 1000; // ms para que se vean las chispas o el borde de victoria antes del modal
@@ -37,6 +38,7 @@ function toHud(s: ArkanoidStats): PlayableGameStats {
 
 export function ArkanoidCanvas({
   paused,
+  skin,
   onStats,
   onGameOver,
 }: PlayableGameProps) {
@@ -48,12 +50,14 @@ export function ArkanoidCanvas({
   const launchRef = useRef(false);
   const [started, setStarted] = useState(false);
 
-  // Callbacks del reproductor siempre actualizados, sin reiniciar el juego cuando cambian.
+  // Callbacks y skin del reproductor siempre actualizados, sin reiniciar el juego cuando cambian.
   const onStatsRef = useRef(onStats);
   const onGameOverRef = useRef(onGameOver);
+  const skinRef = useRef(skin);
   useEffect(() => {
     onStatsRef.current = onStats;
     onGameOverRef.current = onGameOver;
+    skinRef.current = skin;
   });
 
   // Montaje: canvas con devicePixelRatio, sonidos precargados, partida nueva y primer frame.
@@ -91,7 +95,7 @@ export function ArkanoidCanvas({
     }, play);
     gameRef.current = game;
     ctxRef.current = ctx;
-    drawArkanoid(ctx, game, performance.now());
+    drawArkanoid(ctx, game, SKINS[skinRef.current], performance.now());
 
     return () => {
       // Con Cache Components la ruta queda oculta con su estado: al volver se vuelve a la pantalla de inicio.
@@ -122,13 +126,22 @@ export function ArkanoidCanvas({
       pointerXRef.current = null;
       launchRef.current = false;
       game.update(dt, input);
-      drawArkanoid(ctx, game, ts);
+      drawArkanoid(ctx, game, SKINS[skinRef.current], ts);
       raf = requestAnimationFrame(frame);
     };
     raf = requestAnimationFrame(frame);
 
     return () => cancelAnimationFrame(raf);
   }, [started, paused]);
+
+  // Cambio de skin: un frame con la paleta nueva, para que se vea al instante también antes de empezar,
+  // en pausa o con el modal (con el loop andando, el próximo frame ya la usa vía skinRef).
+  useEffect(() => {
+    const game = gameRef.current;
+    const ctx = ctxRef.current;
+    if (!game || !ctx) return;
+    drawArkanoid(ctx, game, SKINS[skin], performance.now());
+  }, [skin]);
 
   // Teclado. Con pausa o modal abierto no captura nada, para no bloquear el input del modal.
   useEffect(() => {

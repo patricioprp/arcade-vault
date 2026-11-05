@@ -9,6 +9,7 @@ import {
   type SnakeStats,
 } from "@/lib/snake/engine";
 import { drawSnake } from "@/lib/snake/render";
+import { SKINS } from "@/lib/snake/skins";
 import type { PlayableGameProps, PlayableGameStats } from "./registry";
 
 const GAME_OVER_DELAY = 1000; // ms para que se vea la serpiente apagarse o la pared de victoria antes del modal
@@ -43,6 +44,7 @@ function toHud(s: SnakeStats): PlayableGameStats {
 
 export function SnakeCanvas({
   paused,
+  skin,
   onStats,
   onGameOver,
 }: PlayableGameProps) {
@@ -54,12 +56,14 @@ export function SnakeCanvas({
   const goRef = useRef(false);
   const [started, setStarted] = useState(false);
 
-  // Callbacks del reproductor siempre actualizados, sin reiniciar el juego cuando cambian.
+  // Callbacks y skin del reproductor siempre actualizados, sin reiniciar el juego cuando cambian.
   const onStatsRef = useRef(onStats);
   const onGameOverRef = useRef(onGameOver);
+  const skinRef = useRef(skin);
   useEffect(() => {
     onStatsRef.current = onStats;
     onGameOverRef.current = onGameOver;
+    skinRef.current = skin;
   });
 
   // Montaje: canvas con devicePixelRatio, sprites de frutas, partida nueva y primer frame.
@@ -85,7 +89,7 @@ export function SnakeCanvas({
     });
     gameRef.current = game;
     ctxRef.current = ctx;
-    drawSnake(ctx, game, null, performance.now());
+    drawSnake(ctx, game, SKINS[skinRef.current], null, performance.now());
 
     // El juego no espera a la imagen: hasta el onload la fruta es un núcleo neón.
     const img = new Image();
@@ -93,7 +97,7 @@ export function SnakeCanvas({
       imgRef.current = img;
       // Redibuja el frame detrás del overlay de inicio con la fruta real.
       if (gameRef.current === game)
-        drawSnake(ctx, game, img, performance.now());
+        drawSnake(ctx, game, SKINS[skinRef.current], img, performance.now());
     };
     img.src = FRUITS_SRC;
 
@@ -124,13 +128,22 @@ export function SnakeCanvas({
       turnsRef.current = [];
       goRef.current = false;
       game.update(dt, input);
-      drawSnake(ctx, game, imgRef.current, ts);
+      drawSnake(ctx, game, SKINS[skinRef.current], imgRef.current, ts);
       raf = requestAnimationFrame(frame);
     };
     raf = requestAnimationFrame(frame);
 
     return () => cancelAnimationFrame(raf);
   }, [started, paused]);
+
+  // Cambio de skin: un frame con la paleta nueva, para que se vea al instante también antes de empezar,
+  // en pausa o con el modal (con el loop andando, el próximo frame ya la usa vía skinRef).
+  useEffect(() => {
+    const game = gameRef.current;
+    const ctx = ctxRef.current;
+    if (!game || !ctx) return;
+    drawSnake(ctx, game, SKINS[skin], imgRef.current, performance.now());
+  }, [skin]);
 
   // Teclado. Con pausa o modal abierto no captura nada, para no bloquear el input del modal.
   useEffect(() => {

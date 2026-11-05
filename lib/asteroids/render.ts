@@ -1,5 +1,6 @@
 // Render de ROCAS: trazos vectoriales con look de fósforo (halo ancho + núcleo fino)
-// y mezcla aditiva, con la paleta de app/globals.css. Sin HUD ni "GAME OVER": eso es del reproductor.
+// y mezcla aditiva. Los colores salen de la skin activa (skins.ts); acá no hay colores fijos.
+// Sin HUD ni "GAME OVER": eso es del reproductor.
 
 import type { AsteroidsGame } from "./engine";
 import {
@@ -12,17 +13,7 @@ import {
   type PowerUp,
   type Ship,
 } from "./entities";
-
-const COLORS = {
-  ship: "#00f5ff", // --cyan
-  asteroid: "#ff006e", // --magenta
-  bullet: "#f5ff00", // --yellow
-  powerUp: "#00ff88", // --green
-  space: "#0a0a30", // halo de .cover-rocas
-} as const;
-
-// RGB de cada color para las partículas, que se desvanecen con alpha.
-const PARTICLE_RGB = { ship: "0, 245, 255", asteroid: "255, 0, 110" } as const;
+import type { AsteroidsPalette } from "./skins";
 
 // Campo de estrellas fijo (mismo cielo en cada partida), con PRNG propio para no depender de Math.random.
 const STARS = (() => {
@@ -32,75 +23,90 @@ const STARS = (() => {
     x: next() * WORLD_W,
     y: next() * WORLD_H,
     a: 0.12 + next() * 0.35,
-    cyan: next() < 0.3,
+    accent: next() < 0.3,
   }));
 })();
 
 export function drawAsteroids(
   ctx: CanvasRenderingContext2D,
   game: AsteroidsGame,
+  palette: AsteroidsPalette,
   now: number,
 ): void {
-  drawSpace(ctx);
+  drawSpace(ctx, palette);
 
   ctx.save();
-  ctx.globalCompositeOperation = "lighter";
+  ctx.globalCompositeOperation = palette.blend;
   ctx.lineJoin = "round";
   ctx.lineCap = "round";
-  game.particles.forEach((p) => drawParticle(ctx, p));
-  game.asteroids.forEach((a) => drawAsteroid(ctx, a));
-  game.powerUps.forEach((p) => drawPowerUp(ctx, p, now));
-  game.bullets.forEach((b) => drawBullet(ctx, b));
-  drawShip(ctx, game.ship);
+  game.particles.forEach((p) => drawParticle(ctx, palette, p));
+  game.asteroids.forEach((a) => drawAsteroid(ctx, palette, a));
+  game.powerUps.forEach((p) => drawPowerUp(ctx, palette, p, now));
+  game.bullets.forEach((b) => drawBullet(ctx, palette, b));
+  drawShip(ctx, palette, game.ship);
   ctx.restore();
 }
 
-function drawSpace(ctx: CanvasRenderingContext2D) {
-  ctx.fillStyle = "#000";
+function drawSpace(ctx: CanvasRenderingContext2D, palette: AsteroidsPalette) {
+  ctx.fillStyle = palette.background;
   ctx.fillRect(0, 0, WORLD_W, WORLD_H);
-  const halo = ctx.createRadialGradient(
-    WORLD_W / 2,
-    WORLD_H / 2,
-    0,
-    WORLD_W / 2,
-    WORLD_H / 2,
-    WORLD_W * 0.6,
-  );
-  halo.addColorStop(0, COLORS.space);
-  halo.addColorStop(1, "rgba(0, 0, 0, 0)");
-  ctx.fillStyle = halo;
-  ctx.fillRect(0, 0, WORLD_W, WORLD_H);
+  if (palette.spaceHalo !== null) {
+    const halo = ctx.createRadialGradient(
+      WORLD_W / 2,
+      WORLD_H / 2,
+      0,
+      WORLD_W / 2,
+      WORLD_H / 2,
+      WORLD_W * 0.6,
+    );
+    halo.addColorStop(0, palette.spaceHalo);
+    // Único literal de color permitido: transparente neutro para el borde del degradé
+    // (los stops no admiten globalAlpha).
+    halo.addColorStop(1, "rgba(0, 0, 0, 0)");
+    ctx.fillStyle = halo;
+    ctx.fillRect(0, 0, WORLD_W, WORLD_H);
+  }
 
-  for (const s of STARS) {
-    ctx.fillStyle = s.cyan
-      ? `rgba(0, 245, 255, ${s.a})`
-      : `rgba(230, 233, 255, ${s.a})`;
-    ctx.fillRect(s.x, s.y, 1.2, 1.2);
+  if (palette.starAlpha > 0) {
+    for (const s of STARS) {
+      ctx.fillStyle = s.accent ? palette.starAccent : palette.starBase;
+      ctx.globalAlpha = s.a * palette.starAlpha;
+      ctx.fillRect(s.x, s.y, 1.2, 1.2);
+    }
+    ctx.globalAlpha = 1;
   }
 }
 
-// Traza el path actual dos veces: halo de color con blur y núcleo fino casi blanco.
+// Traza el path actual: halo de color con blur y, si la skin tiene núcleo, un segundo trazo fino.
 function phosphor(
   ctx: CanvasRenderingContext2D,
+  palette: AsteroidsPalette,
   color: string,
   width: number,
   glow: number,
 ) {
+  const w = width * palette.lineScale;
   ctx.shadowColor = color;
   ctx.shadowBlur = glow;
   ctx.strokeStyle = color;
-  ctx.lineWidth = width;
-  ctx.globalAlpha = 0.75;
+  ctx.lineWidth = w;
+  ctx.globalAlpha = palette.strokeAlpha;
   ctx.stroke();
   ctx.shadowBlur = 0;
-  ctx.strokeStyle = "#fff";
-  ctx.lineWidth = Math.max(0.6, width * 0.35);
-  ctx.globalAlpha = 0.55;
-  ctx.stroke();
+  if (palette.core !== null) {
+    ctx.strokeStyle = palette.core.color;
+    ctx.lineWidth = Math.max(0.6, w * 0.35);
+    ctx.globalAlpha = palette.core.alpha;
+    ctx.stroke();
+  }
   ctx.globalAlpha = 1;
 }
 
-function drawAsteroid(ctx: CanvasRenderingContext2D, a: Asteroid) {
+function drawAsteroid(
+  ctx: CanvasRenderingContext2D,
+  palette: AsteroidsPalette,
+  a: Asteroid,
+) {
   ctx.save();
   ctx.translate(a.x, a.y);
   ctx.rotate(a.rot);
@@ -109,13 +115,21 @@ function drawAsteroid(ctx: CanvasRenderingContext2D, a: Asteroid) {
   for (let i = 1; i < a.verts.length; i++)
     ctx.lineTo(a.verts[i][0], a.verts[i][1]);
   ctx.closePath();
-  ctx.fillStyle = "rgba(255, 0, 110, 0.05)";
-  ctx.fill();
-  phosphor(ctx, COLORS.asteroid, 2, 12);
+  if (palette.asteroidFillAlpha > 0) {
+    ctx.fillStyle = palette.asteroidFill;
+    ctx.globalAlpha = palette.asteroidFillAlpha;
+    ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+  phosphor(ctx, palette, palette.asteroid, 2, palette.glow.asteroid);
   ctx.restore();
 }
 
-function drawShip(ctx: CanvasRenderingContext2D, ship: Ship) {
+function drawShip(
+  ctx: CanvasRenderingContext2D,
+  palette: AsteroidsPalette,
+  ship: Ship,
+) {
   if (ship.dead) return;
   // Parpadeo durante invencibilidad de reaparición
   if (ship.invincible > 0 && Math.floor(ship.invincible * 8) % 2 === 0) return;
@@ -131,7 +145,7 @@ function drawShip(ctx: CanvasRenderingContext2D, ship: Ship) {
   ctx.lineTo(-7, 0); // muesca trasera
   ctx.lineTo(-12, 9); // ala derecha
   ctx.closePath();
-  phosphor(ctx, COLORS.ship, 2.2, 14);
+  phosphor(ctx, palette, palette.ship, 2.2, palette.glow.ship);
 
   // Llama del propulsor
   if (ship.thrusting && Math.random() > 0.35) {
@@ -139,21 +153,30 @@ function drawShip(ctx: CanvasRenderingContext2D, ship: Ship) {
     ctx.moveTo(-8, -4);
     ctx.lineTo(-8 - rand(6, 14), 0);
     ctx.lineTo(-8, 4);
-    phosphor(ctx, COLORS.bullet, 1.6, 10);
+    phosphor(ctx, palette, palette.thrust, 1.6, palette.glow.thrust);
   }
 
   ctx.restore();
 }
 
-function drawBullet(ctx: CanvasRenderingContext2D, b: Bullet) {
+function drawBullet(
+  ctx: CanvasRenderingContext2D,
+  palette: AsteroidsPalette,
+  b: Bullet,
+) {
   // Estela corta en la dirección de la bala: se lee mejor que un punto a 520 px/s.
   ctx.beginPath();
   ctx.moveTo(b.x, b.y);
   ctx.lineTo(b.x - b.vx * 0.012, b.y - b.vy * 0.012);
-  phosphor(ctx, COLORS.bullet, 2.4, 10);
+  phosphor(ctx, palette, palette.bullet, 2.4, palette.glow.bullet);
 }
 
-function drawPowerUp(ctx: CanvasRenderingContext2D, p: PowerUp, now: number) {
+function drawPowerUp(
+  ctx: CanvasRenderingContext2D,
+  palette: AsteroidsPalette,
+  p: PowerUp,
+  now: number,
+) {
   // Parpadea en sus últimos 2 s de vida
   if (p.ttl < 2 && Math.floor(p.ttl * 8) % 2 === 0) return;
   const pulse = 0.85 + Math.sin(now / 150) * 0.15;
@@ -165,12 +188,12 @@ function drawPowerUp(ctx: CanvasRenderingContext2D, p: PowerUp, now: number) {
   ctx.rotate(Math.PI / 4);
   ctx.beginPath();
   ctx.rect(-r, -r, r * 2, r * 2);
-  phosphor(ctx, COLORS.powerUp, 2, 14);
+  phosphor(ctx, palette, palette.powerUp, 2, palette.glow.powerUp);
   ctx.restore();
 
-  ctx.shadowColor = COLORS.powerUp;
-  ctx.shadowBlur = 8;
-  ctx.fillStyle = COLORS.powerUp;
+  ctx.shadowColor = palette.powerUpText;
+  ctx.shadowBlur = palette.glow.powerUpText;
+  ctx.fillStyle = palette.powerUpText;
   ctx.font = "bold 12px monospace";
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
@@ -178,12 +201,19 @@ function drawPowerUp(ctx: CanvasRenderingContext2D, p: PowerUp, now: number) {
   ctx.restore();
 }
 
-function drawParticle(ctx: CanvasRenderingContext2D, p: Particle) {
-  const alpha = p.ttl / p.life;
-  ctx.strokeStyle = `rgba(${PARTICLE_RGB[p.source]}, ${alpha.toFixed(2)})`;
-  ctx.lineWidth = 1.4;
+function drawParticle(
+  ctx: CanvasRenderingContext2D,
+  palette: AsteroidsPalette,
+  p: Particle,
+) {
+  // Se desvanecen con el tiempo de vida restante.
+  ctx.strokeStyle =
+    p.source === "ship" ? palette.particleShip : palette.particleAsteroid;
+  ctx.globalAlpha = p.ttl / p.life;
+  ctx.lineWidth = 1.4 * palette.lineScale;
   ctx.beginPath();
   ctx.moveTo(p.x, p.y);
   ctx.lineTo(p.x - p.vx * 0.05, p.y - p.vy * 0.05);
   ctx.stroke();
+  ctx.globalAlpha = 1;
 }

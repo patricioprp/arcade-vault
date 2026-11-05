@@ -59,6 +59,15 @@ Takes a **theme** and designs **one** game for it, written as **at least two com
 - **Output**: `specs/game-jam/<game-id>/<NN>-variante-<a|b|c>-<slug>.md` (`01` = A, `02` = B, `03` = C), status `borrador`, no global `NN`. Same sections and level of detail as specs 07/08/09, with an extra `Tema` line in the header. Reads `contrato.md`, `plantilla-spec.md`, `lib/games.ts`, the registry and `@game-planner`'s memory (read-only, to skip `descartado` ideas).
 - **Pipeline**: `@game-jam <tema>` → review the variants → copy the chosen one to `specs/NN-juego-<id>-<slug>.md` as `aprobado` → `/spec-impl`.
 
+### `@skin-designer` (`.claude/agents/skin-designer.md`)
+
+Audits that every playable game has at least 3 skins — `neon` (default, current look), `retro` (monochrome phosphor) and `clasico` (flat colors of the original game) — and, when something is missing, designs the palettes and writes the spec. Replies in Spanish; decides on its own and records choices under **Decisiones**.
+
+- **Config**: `model: opus`, `tools: Read, Glob, Grep, Write, Edit` (no Bash), no memory. Writes only `specs/NN-skins-*.md` (status `borrador`); never app code.
+- **Convention it audits**: shared `lib/skins.ts` (`SkinId`, `SKIN_IDS`, `SKIN_LABELS`, `DEFAULT_SKIN`), per-game `lib/<slug>/skins.ts` with `SKINS satisfies Record<SkinId, <Slug>Palette>`, `render.ts` with no hardcoded colors, selector + `localStorage` persistence in the player, and `contrato.md`/`plantilla-spec.md` requiring skins. Skins are cosmetic only (never touch the engine or scoring); playable elements need ≥ 4.5:1 contrast.
+- **Output**: audit table (OK / PARCIAL / SIN SKINS per game) and, if needed, `NN-skins-base.md` (first time: system + skins for all games) or `NN-skins-<id>.md` / `NN-skins-completar.md`.
+- **Pipeline**: `@skin-designer` → review the spec → `aprobado` → `/spec-impl`.
+
 - New agents are only picked up by a fresh Claude Code session (the `/agents` wizard was removed; edit `.claude/agents/` directly).
 
 ## Commands
